@@ -24,12 +24,15 @@ public class TopDownPlayer : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
 
-        
         if (rb == null)
         {
             rb = gameObject.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
-            rb.freezeRotation = true;
+            rb.freezeRotation = true; // This is the key line for 2D
+        }
+        else
+        {
+            rb.freezeRotation = true; // Ensure rotation is frozen
         }
     }
 
