@@ -4,12 +4,12 @@ using UnityEngine.UI;
 public class ComboUI : MonoBehaviour
 {
     [Header("Player Reference")]
-    public PlayerAttack playerAttack;
+    [SerializeField] PlayerAttack playerAttack;
 
     [Header("UI Elements")]
-    public Text comboText;
-    public Slider comboResetSlider;
-    public Text critChanceText; // Optional: Display crit chance
+    [SerializeField] Text comboText;
+    [SerializeField] Slider comboResetSlider;
+    [SerializeField] Text critChanceText;
 
     void Start()
     {

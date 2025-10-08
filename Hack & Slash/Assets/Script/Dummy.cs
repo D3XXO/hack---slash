@@ -2,106 +2,100 @@ using UnityEngine;
 
 public class Dummy : MonoBehaviour
 {
-    [Header("Health Settings")]
-    public float maxHealth = 100f;
-    public float currentHealth;
+    [Header("Stats")]
+    [SerializeField] float maxHealth;
+    [SerializeField] float moveSpeed;
+    [SerializeField] private float contactDamage;
 
-    [Header("Visual Feedback")]
-    public bool showDamageNumbers = true;
-    public Color damageColor = Color.red;
-    public float colorFlashDuration = 0.2f;
+    [Header("AI Settings")]
+    [SerializeField] float avoidanceRayDistance;
+    [SerializeField] LayerMask obstacleLayer;
 
-    private SpriteRenderer spriteRenderer;
-    private Color originalColor;
+    [Header("Damage Number")]
+    [SerializeField] GameObject damageNumberPrefab;
+    [SerializeField] Transform damageNumberSpawnPoint;
+    [SerializeField] float spawnRadius;
+    
+    private float currentHealth;
+    private Transform playerTransform;
+    private Rigidbody2D rb;
+    private Canvas gameCanvas;
 
     void Start()
     {
         currentHealth = maxHealth;
-
-        // Get sprite renderer for visual feedback
-        spriteRenderer = GetComponent<SpriteRenderer>();
-        if (spriteRenderer != null)
+        rb = GetComponent<Rigidbody2D>();
+        gameCanvas = FindObjectOfType<Canvas>();
+        
+        playerTransform = FindObjectOfType<TopDownPlayer>()?.transform;
+        
+        if (playerTransform == null)
         {
-            originalColor = spriteRenderer.color;
+            this.enabled = false;
         }
-
-        Debug.Log($"{gameObject.name} spawned with {currentHealth} health");
     }
 
-    public void TakeDamage(float damage)
+    void FixedUpdate()
     {
-        // Reduce health
+        if (playerTransform == null) return;
+        
+        HandleMovement();
+    }
+
+    private void HandleMovement()
+    {
+        Vector2 directionToPlayer = (playerTransform.position - transform.position).normalized;
+
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, directionToPlayer, avoidanceRayDistance, obstacleLayer);
+        
+        Vector2 moveDirection;
+
+        if (hit.collider != null)
+        {
+            moveDirection = Vector2.Reflect(directionToPlayer, hit.normal);
+            Debug.DrawRay(transform.position, moveDirection * avoidanceRayDistance, Color.red);
+        }
+        else
+        {
+            moveDirection = directionToPlayer;
+            Debug.DrawRay(transform.position, moveDirection * avoidanceRayDistance, Color.green);
+        }
+        
+        rb.velocity = moveDirection * moveSpeed * Time.deltaTime;
+    }
+
+    public void TakeDamage(float damage, bool isCrit)
+    {
         currentHealth -= damage;
 
-        // Show damage feedback
-        if (showDamageNumbers)
+        if (damageNumberPrefab != null && gameCanvas != null)
         {
-            Debug.Log($"{gameObject.name} took {damage} damage! Health: {currentHealth}");
+            Vector3 basePosition = damageNumberSpawnPoint.position;
+            Vector2 randomOffset = Random.insideUnitCircle * spawnRadius;
+            Vector3 spawnPosition = basePosition + new Vector3(randomOffset.x, randomOffset.y, 0);
+            GameObject damageNumberInstance = Instantiate(damageNumberPrefab, gameCanvas.transform);
+            DamageNumber dnScript = damageNumberInstance.GetComponent<DamageNumber>();
+            dnScript.worldPositionToFollow = spawnPosition;
+            dnScript.SetDamage(damage, isCrit);
         }
 
-        // Visual feedback
-        if (spriteRenderer != null)
-        {
-            StartCoroutine(FlashColor());
-        }
-
-        // Check for death
         if (currentHealth <= 0)
         {
             Die();
         }
     }
 
-    public void Heal(float healAmount)
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        // Increase health, but don't exceed max health
-        currentHealth = Mathf.Min(currentHealth + healAmount, maxHealth);
-
-        Debug.Log($"{gameObject.name} healed for {healAmount}! Health: {currentHealth}");
-    }
-
-    public void ResetHealth()
-    {
-        currentHealth = maxHealth;
-        Debug.Log($"{gameObject.name} health reset to {currentHealth}");
-    }
-
-    private System.Collections.IEnumerator FlashColor()
-    {
-        if (spriteRenderer != null)
+        if (collision.gameObject.TryGetComponent<TopDownPlayer>(out TopDownPlayer player))
         {
-            spriteRenderer.color = damageColor;
-            yield return new WaitForSeconds(colorFlashDuration);
-            spriteRenderer.color = originalColor;
+            player.TakeDamage(contactDamage);
         }
     }
-
+    
     private void Die()
     {
         Debug.Log($"{gameObject.name} has been destroyed!");
-
-        // You can replace this with your own death logic:
-        // - Play death animation
-        // - Spawn particles
-        // - Drop loot
-        // - etc.
-
         Destroy(gameObject);
-    }
-
-    // Public methods to check health status
-    public float GetHealthPercentage()
-    {
-        return currentHealth / maxHealth;
-    }
-
-    public bool IsAlive()
-    {
-        return currentHealth > 0;
-    }
-
-    public bool IsFullHealth()
-    {
-        return currentHealth >= maxHealth;
     }
 }

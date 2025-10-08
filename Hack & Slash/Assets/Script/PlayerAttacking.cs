@@ -4,29 +4,29 @@ using System.Collections;
 public class PlayerAttack : MonoBehaviour
 {
     [Header("Attack Settings")]
-    public float attackRange = 1.5f;
-    public LayerMask enemyLayer;
+    [SerializeField] float attackRange;
+    [SerializeField] LayerMask enemyLayer;
 
     [Header("Light Attack Combo")]
-    public float[] lightAttackDamage = { 10f, 15f, 20f, 25f };
-    public float lightAttackCooldown = 0.3f;
-    public float comboResetTime = 2f;
+    [SerializeField] float[] lightAttackDamage;
+    [SerializeField] float lightAttackCooldown;
+    [SerializeField] float comboResetTime;
 
     [Header("Burst Attack")]
-    public float burstAttackDamage = 40f;
-    public float burstAttackCooldown = 2f;
-    public float burstAttackForce = 5f;
+    [SerializeField] float burstAttackDamage;
+    [SerializeField] float burstAttackCooldown;
+    [SerializeField] float burstAttackForce;
 
     [Header("Critical Hit Settings")]
     [Range(0, 100)]
-    public float critChance = 15f; // 15% chance to crit
-    public float critMultiplier = 2f; // 2x damage on crit
-    public Color critTextColor = Color.yellow;
-    public GameObject critEffect;
+    [SerializeField] float critChance;
+    [SerializeField] float critMultiplier;
+    [SerializeField] Color critTextColor = Color.yellow;
+    [SerializeField] GameObject critEffect;
 
     [Header("Visual Effects")]
-    public GameObject attackEffect;
-    public Transform attackPoint;
+    [SerializeField] GameObject attackEffect;
+    [SerializeField] Transform attackPoint;
 
     // Attack state variables
     private int currentCombo = 0;
@@ -55,7 +55,7 @@ public class PlayerAttack : MonoBehaviour
         {
             attackPoint = new GameObject("AttackPoint").transform;
             attackPoint.SetParent(transform);
-            attackPoint.localPosition = new Vector3(0.5f, 0, 0);
+            attackPoint.localPosition = new Vector3(0, 0, 0);
         }
     }
 
@@ -180,6 +180,8 @@ public class PlayerAttack : MonoBehaviour
         return isCritical;
     }
 
+    // Ganti di dalam metode PerformAttack di PlayerAttack.cs
+
     void PerformAttack(float damage, bool isBurst, bool isCrit = false)
     {
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayer);
@@ -189,7 +191,8 @@ public class PlayerAttack : MonoBehaviour
             Dummy enemyHealth = enemy.GetComponent<Dummy>();
             if (enemyHealth != null)
             {
-                enemyHealth.TakeDamage(damage);
+                // Ubah baris ini
+                enemyHealth.TakeDamage(damage, isCrit);
 
                 // Show crit effect if it was a critical hit
                 if (isCrit && critEffect != null)

@@ -1,21 +1,26 @@
+// TopDownPlayer.cs
 using UnityEngine;
 
 public class TopDownPlayer : MonoBehaviour
 {
+    [Header("Health Settings")]
+    [SerializeField] private float maxHealth;
+    private float currentHealth;
+
     [Header("Movement Settings")]
-    public float moveSpeed = 5f;
-    public float dashSpeed = 15f;
-    public float dashDuration = 0.2f;
-    public float dashCooldown = 1f;
+    [SerializeField] float moveSpeed;
+    [SerializeField] float dashSpeed;
+    [SerializeField] float dashDuration;
+    [SerializeField] float dashCooldown;
 
     [Header("Input Settings")]
-    public KeyCode dashKey = KeyCode.LeftShift;
+    [SerializeField] KeyCode dashKey = KeyCode.LeftShift;
 
+    private PlayerHealthUI healthUI;
     private Rigidbody2D rb;
     private Vector2 movement;
     private Vector2 dashDirection;
 
-    // Dash 
     private bool isDashing = false;
     private float dashTimeLeft = 0f;
     private float dashCooldownLeft = 0f;
@@ -23,33 +28,28 @@ public class TopDownPlayer : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        // Inisialisasi health player
+        currentHealth = maxHealth;
 
-        if (rb == null)
+        // Cari skrip UI Health secara otomatis
+        healthUI = FindObjectOfType<PlayerHealthUI>();
+        if (healthUI != null)
         {
-            rb = gameObject.AddComponent<Rigidbody2D>();
-            rb.gravityScale = 0f;
-            rb.freezeRotation = true; // This is the key line for 2D
-        }
-        else
-        {
-            rb.freezeRotation = true; // Ensure rotation is frozen
+            healthUI.UpdateHealthBar(currentHealth, maxHealth);
         }
     }
 
     void Update()
     {
-   
         movement.x = Input.GetAxisRaw("Horizontal");
         movement.y = Input.GetAxisRaw("Vertical");
         movement = movement.normalized;
 
-        // dash input and cooldown
         if (Input.GetKeyDown(dashKey) && dashCooldownLeft <= 0f && !isDashing && movement != Vector2.zero)
         {
             StartDash();
         }
 
-        //  dash timers
         if (isDashing)
         {
             dashTimeLeft -= Time.deltaTime;
@@ -69,15 +69,41 @@ public class TopDownPlayer : MonoBehaviour
     {
         if (isDashing)
         {
-            //  dash velocity
             rb.velocity = dashDirection * dashSpeed;
         }
         else
         {
-            // normal movement
             rb.velocity = movement * moveSpeed;
         }
     }
+
+    // --- FUNGSI BARU UNTUK HEALTH ---
+    public void TakeDamage(float damage)
+    {
+        currentHealth -= damage;
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth); // Pastikan health tidak kurang dari 0
+
+        Debug.Log($"Player took {damage} damage. Current Health: {currentHealth}");
+
+        // Update UI Health Bar
+        if (healthUI != null)
+        {
+            healthUI.UpdateHealthBar(currentHealth, maxHealth);
+        }
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+    }
+
+    private void Die()
+    {
+        Debug.Log("Player has died!");
+        // Tambahkan logika kematian di sini (misal: game over, restart scene)
+        gameObject.SetActive(false); // Contoh sederhana: nonaktifkan player
+    }
+    // ---------------------------------
 
     void StartDash()
     {
@@ -90,9 +116,8 @@ public class TopDownPlayer : MonoBehaviour
     void EndDash()
     {
         isDashing = false;
-        rb.velocity = Vector2.zero; // Stop immediately after dash
+        rb.velocity = Vector2.zero;
     }
-
 
     public bool IsDashing()
     {
