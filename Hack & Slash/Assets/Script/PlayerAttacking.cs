@@ -8,14 +8,21 @@ public class PlayerAttack : MonoBehaviour
     public LayerMask enemyLayer;
 
     [Header("Light Attack Combo")]
-    public float[] lightAttackDamage = { 10f, 15f, 20f };
+    public float[] lightAttackDamage = { 10f, 15f, 20f, 25f };
     public float lightAttackCooldown = 0.3f;
-    public float comboResetTime = 2f; // Now 2 seconds
+    public float comboResetTime = 2f;
 
     [Header("Burst Attack")]
     public float burstAttackDamage = 40f;
     public float burstAttackCooldown = 2f;
     public float burstAttackForce = 5f;
+
+    [Header("Critical Hit Settings")]
+    [Range(0, 100)]
+    public float critChance = 15f; // 15% chance to crit
+    public float critMultiplier = 2f; // 2x damage on crit
+    public Color critTextColor = Color.yellow;
+    public GameObject critEffect;
 
     [Header("Visual Effects")]
     public GameObject attackEffect;
@@ -35,42 +42,41 @@ public class PlayerAttack : MonoBehaviour
     private Animator animator;
     private Camera cam;
 
+    // Stats tracking
+    private int totalCrits = 0;
+    private int totalAttacks = 0;
+
     void Start()
     {
         animator = GetComponent<Animator>();
         cam = Camera.main;
 
-        // Create attack point if not assigned
         if (attackPoint == null)
         {
             attackPoint = new GameObject("AttackPoint").transform;
             attackPoint.SetParent(transform);
-            attackPoint.localPosition = new Vector3(0.5f, 0, 0); // Right side of player
+            attackPoint.localPosition = new Vector3(0.5f, 0, 0);
         }
     }
 
     void Update()
     {
-        // Update cooldowns
         if (lightCooldownLeft > 0f)
             lightCooldownLeft -= Time.deltaTime;
 
         if (burstCooldownLeft > 0f)
             burstCooldownLeft -= Time.deltaTime;
 
-        // Handle input
         HandleAttackInput();
     }
 
     void HandleAttackInput()
     {
-        // Light Attack (Left Click) - Combo system
         if (Input.GetMouseButtonDown(0) && canAttack && lightCooldownLeft <= 0f)
         {
             LightAttack();
         }
 
-        // Burst Attack (Right Click)
         if (Input.GetMouseButtonDown(1) && canAttack && burstCooldownLeft <= 0f)
         {
             BurstAttack();
@@ -79,31 +85,39 @@ public class PlayerAttack : MonoBehaviour
 
     void LightAttack()
     {
-        // Stop any existing combo reset coroutine
         if (comboResetCoroutine != null)
         {
             StopCoroutine(comboResetCoroutine);
         }
 
-        // Execute the current combo attack
-        PerformAttack(lightAttackDamage[currentCombo], false);
+        // Calculate damage with crit chance
+        float baseDamage = lightAttackDamage[currentCombo];
+        bool isCrit = RollForCrit();
+        float finalDamage = isCrit ? baseDamage * critMultiplier : baseDamage;
 
-        // Trigger animation
+        PerformAttack(finalDamage, false, isCrit);
+
         if (animator != null)
         {
             animator.SetTrigger("LightAttack");
             animator.SetInteger("ComboStep", currentCombo);
         }
 
-        // Visual effect
         if (attackEffect != null)
         {
             Instantiate(attackEffect, attackPoint.position, attackPoint.rotation);
         }
 
-        Debug.Log($"Light Attack Combo {currentCombo + 1}! Damage: {lightAttackDamage[currentCombo]}");
+        // Show appropriate message
+        if (isCrit)
+        {
+            Debug.Log($"<color=yellow>CRITICAL! Light Attack Combo {currentCombo + 1}! Damage: {finalDamage}</color>");
+        }
+        else
+        {
+            Debug.Log($"Light Attack Combo {currentCombo + 1}! Damage: {finalDamage}");
+        }
 
-        // Move to next combo or reset
         currentCombo++;
         if (currentCombo >= lightAttackDamage.Length)
         {
@@ -111,54 +125,78 @@ public class PlayerAttack : MonoBehaviour
             Debug.Log("Combo finished! Resetting to first attack.");
         }
 
-        // Set cooldowns and timers
         lightCooldownLeft = lightAttackCooldown;
         lastAttackTime = Time.time;
-
-        // Start combo reset timer (2 seconds)
         comboResetCoroutine = StartCoroutine(ComboResetTimer());
+
+        totalAttacks++;
     }
 
     void BurstAttack()
     {
-        // Execute burst attack
-        PerformAttack(burstAttackDamage, true);
+        // Calculate damage with crit chance
+        bool isCrit = RollForCrit();
+        float finalDamage = isCrit ? burstAttackDamage * critMultiplier : burstAttackDamage;
 
-        // Trigger animation
+        PerformAttack(finalDamage, true, isCrit);
+
         if (animator != null)
         {
             animator.SetTrigger("BurstAttack");
         }
 
-        // Set cooldown
         burstCooldownLeft = burstAttackCooldown;
 
-        // Visual effect
         if (attackEffect != null)
         {
             Instantiate(attackEffect, attackPoint.position, attackPoint.rotation);
         }
 
-        // Reset combo since burst breaks the flow
-        ResetCombo();
+        // Show appropriate message
+        if (isCrit)
+        {
+            Debug.Log($"<color=yellow>CRITICAL BURST! Damage: {finalDamage}</color>");
+        }
+        else
+        {
+            Debug.Log($"Burst Attack! Damage: {finalDamage}");
+        }
 
-        Debug.Log($"Burst Attack! Damage: {burstAttackDamage}");
+        ResetCombo();
+        totalAttacks++;
     }
 
-    void PerformAttack(float damage, bool isBurst)
+    bool RollForCrit()
     {
-        // Detect enemies in range
+        // Generate random number between 0-100 and check if it's below crit chance
+        float roll = Random.Range(0f, 100f);
+        bool isCritical = roll <= critChance;
+
+        if (isCritical)
+        {
+            totalCrits++;
+        }
+
+        return isCritical;
+    }
+
+    void PerformAttack(float damage, bool isBurst, bool isCrit = false)
+    {
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayer);
 
         foreach (Collider2D enemy in hitEnemies)
         {
-            // Apply damage
             Dummy enemyHealth = enemy.GetComponent<Dummy>();
             if (enemyHealth != null)
             {
                 enemyHealth.TakeDamage(damage);
 
-                // Apply knockback for burst attack
+                // Show crit effect if it was a critical hit
+                if (isCrit && critEffect != null)
+                {
+                    Instantiate(critEffect, enemy.transform.position, Quaternion.identity);
+                }
+
                 if (isBurst)
                 {
                     ApplyKnockback(enemy.transform);
@@ -179,10 +217,7 @@ public class PlayerAttack : MonoBehaviour
 
     IEnumerator ComboResetTimer()
     {
-        // Wait for 2 seconds
         yield return new WaitForSeconds(comboResetTime);
-
-        // If we haven't attacked again in 2 seconds, reset combo
         ResetCombo();
     }
 
@@ -200,16 +235,6 @@ public class PlayerAttack : MonoBehaviour
         }
 
         comboResetCoroutine = null;
-    }
-
-    // Visualize attack range in Scene view
-    void OnDrawGizmosSelected()
-    {
-        if (attackPoint != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(attackPoint.position, attackRange);
-        }
     }
 
     // Public methods for UI and other scripts
@@ -248,5 +273,41 @@ public class PlayerAttack : MonoBehaviour
 
         float timeSinceLastAttack = Time.time - lastAttackTime;
         return Mathf.Clamp01(timeSinceLastAttack / comboResetTime);
+    }
+
+    // New methods for crit system
+    public float GetCritChance()
+    {
+        return critChance;
+    }
+
+    public float GetCritMultiplier()
+    {
+        return critMultiplier;
+    }
+
+    public float GetCritRate()
+    {
+        if (totalAttacks == 0) return 0f;
+        return (float)totalCrits / totalAttacks * 100f;
+    }
+
+    public int GetTotalCrits()
+    {
+        return totalCrits;
+    }
+
+    public int GetTotalAttacks()
+    {
+        return totalAttacks;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (attackPoint != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(attackPoint.position, attackRange);
+        }
     }
 }
