@@ -3,19 +3,13 @@ using System.Collections;
 
 public class PlayerAttack : MonoBehaviour
 {
+    [Header("Weapon Settings")]
+    public Weapon[] weapons = new Weapon[3];
+    private int currentWeaponIndex = 0;
+
     [Header("Attack Settings")]
     [SerializeField] float attackRange;
     [SerializeField] LayerMask enemyLayer;
-
-    [Header("Light Attack Combo")]
-    [SerializeField] float[] lightAttackDamage;
-    [SerializeField] float lightAttackCooldown;
-    [SerializeField] float comboResetTime;
-
-    [Header("Burst Attack")]
-    [SerializeField] float burstAttackDamage;
-    [SerializeField] float burstAttackCooldown;
-    [SerializeField] float burstAttackForce;
 
     [Header("Critical Hit Settings")]
     [Range(0, 100)]
@@ -46,10 +40,29 @@ public class PlayerAttack : MonoBehaviour
     private int totalCrits = 0;
     private int totalAttacks = 0;
 
+    [System.Serializable]
+    public class Weapon
+    {
+        public string weaponName;
+        public float[] lightAttackDamage;
+        public float burstAttackDamage;
+        public float burstAttackForce;
+        public float lightAttackCooldown;
+        public float burstAttackCooldown;
+        public float comboResetTime;
+        public GameObject weaponModel; // Optional: visual model
+    }
+
     void Start()
     {
         animator = GetComponent<Animator>();
         cam = Camera.main;
+
+        // Initialize default weapons if not set
+        if (weapons[0].lightAttackDamage == null || weapons[0].lightAttackDamage.Length == 0)
+        {
+            InitializeDefaultWeapons();
+        }
 
         if (attackPoint == null)
         {
@@ -57,6 +70,48 @@ public class PlayerAttack : MonoBehaviour
             attackPoint.SetParent(transform);
             attackPoint.localPosition = new Vector3(0, 0, 0);
         }
+
+        // Activate first weapon
+        SwitchWeapon(0);
+    }
+
+    void InitializeDefaultWeapons()
+    {
+        // Weapon 1: Knife (Fast, low damage)
+        weapons[0] = new Weapon
+        {
+            weaponName = "Knife",
+            lightAttackDamage = new float[] { 10f, 12f, 15f, 18f },
+            burstAttackDamage = 30f,
+            burstAttackForce = 3f,
+            lightAttackCooldown = 0.2f,
+            burstAttackCooldown = 1.5f,
+            comboResetTime = 2f
+        };
+
+        // Weapon 2: Sword (Balanced)
+        weapons[1] = new Weapon
+        {
+            weaponName = "Sword",
+            lightAttackDamage = new float[] { 15f, 18f, 22f, 25f },
+            burstAttackDamage = 45f,
+            burstAttackForce = 5f,
+            lightAttackCooldown = 0.3f,
+            burstAttackCooldown = 2f,
+            comboResetTime = 2f
+        };
+
+        // Weapon 3: Hammer (Slow, high damage)
+        weapons[2] = new Weapon
+        {
+            weaponName = "Hammer",
+            lightAttackDamage = new float[] { 20f, 25f, 30f, 35f },
+            burstAttackDamage = 60f,
+            burstAttackForce = 8f,
+            lightAttackCooldown = 0.5f,
+            burstAttackCooldown = 3f,
+            comboResetTime = 2.5f
+        };
     }
 
     void Update()
@@ -67,7 +122,45 @@ public class PlayerAttack : MonoBehaviour
         if (burstCooldownLeft > 0f)
             burstCooldownLeft -= Time.deltaTime;
 
+        HandleWeaponSwitch();
         HandleAttackInput();
+    }
+
+    void HandleWeaponSwitch()
+    {
+        // Switch weapons with 1, 2, 3 keys
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+        {
+            SwitchWeapon(0);
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            SwitchWeapon(1);
+        }
+        else if (Input.GetKeyDown(KeyCode.Alpha3))
+        {
+            SwitchWeapon(2);
+        }
+    }
+
+    void SwitchWeapon(int weaponIndex)
+    {
+        if (weaponIndex < 0 || weaponIndex >= weapons.Length) return;
+
+        // Deactivate current weapon model
+        if (weapons[currentWeaponIndex].weaponModel != null)
+            weapons[currentWeaponIndex].weaponModel.SetActive(false);
+
+        currentWeaponIndex = weaponIndex;
+
+        // Activate new weapon model
+        if (weapons[currentWeaponIndex].weaponModel != null)
+            weapons[currentWeaponIndex].weaponModel.SetActive(true);
+
+        // Reset combo when switching weapons
+        ResetCombo();
+
+        Debug.Log($"Switched to: {weapons[currentWeaponIndex].weaponName}");
     }
 
     void HandleAttackInput()
@@ -90,8 +183,10 @@ public class PlayerAttack : MonoBehaviour
             StopCoroutine(comboResetCoroutine);
         }
 
+        Weapon currentWeapon = weapons[currentWeaponIndex];
+
         // Calculate damage with crit chance
-        float baseDamage = lightAttackDamage[currentCombo];
+        float baseDamage = currentWeapon.lightAttackDamage[currentCombo];
         bool isCrit = RollForCrit();
         float finalDamage = isCrit ? baseDamage * critMultiplier : baseDamage;
 
@@ -111,21 +206,21 @@ public class PlayerAttack : MonoBehaviour
         // Show appropriate message
         if (isCrit)
         {
-            Debug.Log($"<color=yellow>CRITICAL! Light Attack Combo {currentCombo + 1}! Damage: {finalDamage}</color>");
+            Debug.Log($"<color=yellow>CRITICAL! {currentWeapon.weaponName} Light Attack Combo {currentCombo + 1}! Damage: {finalDamage}</color>");
         }
         else
         {
-            Debug.Log($"Light Attack Combo {currentCombo + 1}! Damage: {finalDamage}");
+            Debug.Log($"{currentWeapon.weaponName} Light Attack Combo {currentCombo + 1}! Damage: {finalDamage}");
         }
 
         currentCombo++;
-        if (currentCombo >= lightAttackDamage.Length)
+        if (currentCombo >= currentWeapon.lightAttackDamage.Length)
         {
             currentCombo = 0;
-            Debug.Log("Combo finished! Resetting to first attack.");
+            Debug.Log($"{currentWeapon.weaponName} combo finished! Resetting to first attack.");
         }
 
-        lightCooldownLeft = lightAttackCooldown;
+        lightCooldownLeft = currentWeapon.lightAttackCooldown;
         lastAttackTime = Time.time;
         comboResetCoroutine = StartCoroutine(ComboResetTimer());
 
@@ -134,9 +229,11 @@ public class PlayerAttack : MonoBehaviour
 
     void BurstAttack()
     {
+        Weapon currentWeapon = weapons[currentWeaponIndex];
+
         // Calculate damage with crit chance
         bool isCrit = RollForCrit();
-        float finalDamage = isCrit ? burstAttackDamage * critMultiplier : burstAttackDamage;
+        float finalDamage = isCrit ? currentWeapon.burstAttackDamage * critMultiplier : currentWeapon.burstAttackDamage;
 
         PerformAttack(finalDamage, true, isCrit);
 
@@ -145,7 +242,7 @@ public class PlayerAttack : MonoBehaviour
             animator.SetTrigger("BurstAttack");
         }
 
-        burstCooldownLeft = burstAttackCooldown;
+        burstCooldownLeft = currentWeapon.burstAttackCooldown;
 
         if (attackEffect != null)
         {
@@ -155,11 +252,11 @@ public class PlayerAttack : MonoBehaviour
         // Show appropriate message
         if (isCrit)
         {
-            Debug.Log($"<color=yellow>CRITICAL BURST! Damage: {finalDamage}</color>");
+            Debug.Log($"<color=yellow>CRITICAL BURST! {currentWeapon.weaponName} Damage: {finalDamage}</color>");
         }
         else
         {
-            Debug.Log($"Burst Attack! Damage: {finalDamage}");
+            Debug.Log($"{currentWeapon.weaponName} Burst Attack! Damage: {finalDamage}");
         }
 
         ResetCombo();
@@ -168,7 +265,6 @@ public class PlayerAttack : MonoBehaviour
 
     bool RollForCrit()
     {
-        // Generate random number between 0-100 and check if it's below crit chance
         float roll = Random.Range(0f, 100f);
         bool isCritical = roll <= critChance;
 
@@ -180,8 +276,6 @@ public class PlayerAttack : MonoBehaviour
         return isCritical;
     }
 
-    // Ganti di dalam metode PerformAttack di PlayerAttack.cs
-
     void PerformAttack(float damage, bool isBurst, bool isCrit = false)
     {
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayer);
@@ -191,10 +285,8 @@ public class PlayerAttack : MonoBehaviour
             Dummy enemyHealth = enemy.GetComponent<Dummy>();
             if (enemyHealth != null)
             {
-                // Ubah baris ini
                 enemyHealth.TakeDamage(damage, isCrit);
 
-                // Show crit effect if it was a critical hit
                 if (isCrit && critEffect != null)
                 {
                     Instantiate(critEffect, enemy.transform.position, Quaternion.identity);
@@ -214,13 +306,15 @@ public class PlayerAttack : MonoBehaviour
         if (enemyRb != null)
         {
             Vector2 direction = (enemy.position - transform.position).normalized;
-            enemyRb.AddForce(direction * burstAttackForce, ForceMode2D.Impulse);
+            float force = weapons[currentWeaponIndex].burstAttackForce;
+            enemyRb.AddForce(direction * force, ForceMode2D.Impulse);
         }
     }
 
     IEnumerator ComboResetTimer()
     {
-        yield return new WaitForSeconds(comboResetTime);
+        float resetTime = weapons[currentWeaponIndex].comboResetTime;
+        yield return new WaitForSeconds(resetTime);
         ResetCombo();
     }
 
@@ -248,12 +342,14 @@ public class PlayerAttack : MonoBehaviour
 
     public float GetLightCooldownPercentage()
     {
-        return 1f - (lightCooldownLeft / lightAttackCooldown);
+        Weapon currentWeapon = weapons[currentWeaponIndex];
+        return 1f - (lightCooldownLeft / currentWeapon.lightAttackCooldown);
     }
 
     public float GetBurstCooldownPercentage()
     {
-        return 1f - (burstCooldownLeft / burstAttackCooldown);
+        Weapon currentWeapon = weapons[currentWeaponIndex];
+        return 1f - (burstCooldownLeft / currentWeapon.burstAttackCooldown);
     }
 
     public int GetCurrentCombo()
@@ -261,12 +357,18 @@ public class PlayerAttack : MonoBehaviour
         return currentCombo;
     }
 
+    public int GetMaxCombo()
+    {
+        return weapons[currentWeaponIndex].lightAttackDamage.Length;
+    }
+
     public float GetComboResetTimeLeft()
     {
         if (comboResetCoroutine == null || currentCombo == 0)
             return 0f;
 
-        return comboResetTime - (Time.time - lastAttackTime);
+        float resetTime = weapons[currentWeaponIndex].comboResetTime;
+        return resetTime - (Time.time - lastAttackTime);
     }
 
     public float GetComboResetPercentage()
@@ -274,11 +376,28 @@ public class PlayerAttack : MonoBehaviour
         if (currentCombo == 0)
             return 0f;
 
+        float resetTime = weapons[currentWeaponIndex].comboResetTime;
         float timeSinceLastAttack = Time.time - lastAttackTime;
-        return Mathf.Clamp01(timeSinceLastAttack / comboResetTime);
+        return Mathf.Clamp01(timeSinceLastAttack / resetTime);
     }
 
-    // New methods for crit system
+    // New methods for weapon system
+    public string GetCurrentWeaponName()
+    {
+        return weapons[currentWeaponIndex].weaponName;
+    }
+
+    public int GetCurrentWeaponIndex()
+    {
+        return currentWeaponIndex;
+    }
+
+    public Weapon GetCurrentWeapon()
+    {
+        return weapons[currentWeaponIndex];
+    }
+
+    // Crit system methods
     public float GetCritChance()
     {
         return critChance;

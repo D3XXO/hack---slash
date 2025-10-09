@@ -103,6 +103,20 @@ public class TopDownPlayer : MonoBehaviour
         // Tambahkan logika kematian di sini (misal: game over, restart scene)
         gameObject.SetActive(false); // Contoh sederhana: nonaktifkan player
     }
+    public float GetCurrentHealth()
+    {
+        return currentHealth;
+    }
+
+    public float GetMaxHealth()
+    {
+        return maxHealth;
+    }
+
+    public float GetHealthPercentage()
+    {
+        return currentHealth / maxHealth;
+    }
     // ---------------------------------
 
     void StartDash()
