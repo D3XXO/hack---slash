@@ -1,4 +1,3 @@
-// DamageNumber.cs (DIPERBARUI LAGI)
 using UnityEngine;
 using UnityEngine.UI;
 

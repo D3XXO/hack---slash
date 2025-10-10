@@ -1,10 +1,10 @@
-// TopDownPlayer.cs
 using UnityEngine;
+using System.Collections;
 
 public class TopDownPlayer : MonoBehaviour
 {
     [Header("Health Settings")]
-    [SerializeField] private float maxHealth;
+    [SerializeField] float maxHealth;
     private float currentHealth;
 
     [Header("Movement Settings")]
@@ -12,10 +12,14 @@ public class TopDownPlayer : MonoBehaviour
     [SerializeField] float dashSpeed;
     [SerializeField] float dashDuration;
     [SerializeField] float dashCooldown;
+    
+    [Header("Knockback Settings")]
+    [SerializeField] float knockbackDuration;
 
     [Header("Input Settings")]
     [SerializeField] KeyCode dashKey = KeyCode.LeftShift;
 
+    public CameraController mainCameraController;
     private PlayerHealthUI healthUI;
     private Rigidbody2D rb;
     private Vector2 movement;
@@ -25,13 +29,12 @@ public class TopDownPlayer : MonoBehaviour
     private float dashTimeLeft = 0f;
     private float dashCooldownLeft = 0f;
 
+    private bool isBeingKnockedBack = false;
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        // Inisialisasi health player
         currentHealth = maxHealth;
-
-        // Cari skrip UI Health secara otomatis
         healthUI = FindObjectOfType<PlayerHealthUI>();
         if (healthUI != null)
         {
@@ -41,8 +44,20 @@ public class TopDownPlayer : MonoBehaviour
 
     void Update()
     {
-        movement.x = Input.GetAxisRaw("Horizontal");
-        movement.y = Input.GetAxisRaw("Vertical");
+        if (isBeingKnockedBack) return;
+
+        float horizontalInput = Input.GetAxisRaw("Horizontal");
+        float verticalInput = Input.GetAxisRaw("Vertical");
+
+        if (Mathf.Abs(horizontalInput) > Mathf.Abs(verticalInput))
+        {
+            movement = new Vector2(horizontalInput, 0f);
+        }
+        else
+        {
+            movement = new Vector2(0f, verticalInput);
+        }
+
         movement = movement.normalized;
 
         if (Input.GetKeyDown(dashKey) && dashCooldownLeft <= 0f && !isDashing && movement != Vector2.zero)
@@ -67,25 +82,45 @@ public class TopDownPlayer : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (isBeingKnockedBack) return;
+
         if (isDashing)
         {
-            rb.velocity = dashDirection * dashSpeed;
+            rb.velocity = dashDirection * dashSpeed * Time.deltaTime;
         }
         else
         {
-            rb.velocity = movement * moveSpeed;
+            rb.velocity = movement * moveSpeed * Time.deltaTime;
         }
     }
 
-    // --- FUNGSI BARU UNTUK HEALTH ---
+    public void ApplyKnockback(Vector2 direction, float force)
+    {
+        if (isDashing) EndDash();
+        
+        StopAllCoroutines();
+        StartCoroutine(KnockbackCoroutine(direction, force));
+    }
+
+    private IEnumerator KnockbackCoroutine(Vector2 direction, float force)
+    {
+        isBeingKnockedBack = true;
+        
+        rb.velocity = direction * force;
+
+        yield return new WaitForSeconds(knockbackDuration);
+
+        rb.velocity = Vector2.zero;
+        isBeingKnockedBack = false;
+    }
+
     public void TakeDamage(float damage)
     {
         currentHealth -= damage;
-        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth); // Pastikan health tidak kurang dari 0
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth); 
 
         Debug.Log($"Player took {damage} damage. Current Health: {currentHealth}");
 
-        // Update UI Health Bar
         if (healthUI != null)
         {
             healthUI.UpdateHealthBar(currentHealth, maxHealth);
@@ -100,8 +135,7 @@ public class TopDownPlayer : MonoBehaviour
     private void Die()
     {
         Debug.Log("Player has died!");
-        // Tambahkan logika kematian di sini (misal: game over, restart scene)
-        gameObject.SetActive(false); // Contoh sederhana: nonaktifkan player
+        gameObject.SetActive(false); 
     }
     public float GetCurrentHealth()
     {
@@ -117,8 +151,7 @@ public class TopDownPlayer : MonoBehaviour
     {
         return currentHealth / maxHealth;
     }
-    // ---------------------------------
-
+    
     void StartDash()
     {
         isDashing = true;

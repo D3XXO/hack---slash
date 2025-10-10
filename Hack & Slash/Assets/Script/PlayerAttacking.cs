@@ -15,7 +15,6 @@ public class PlayerAttack : MonoBehaviour
     [Range(0, 100)]
     [SerializeField] float critChance;
     [SerializeField] float critMultiplier;
-    [SerializeField] Color critTextColor = Color.yellow;
     [SerializeField] GameObject critEffect;
 
     [Header("Visual Effects")]
@@ -46,23 +45,18 @@ public class PlayerAttack : MonoBehaviour
         public string weaponName;
         public float[] lightAttackDamage;
         public float burstAttackDamage;
+        public float lightAttackKnockbackForce;
         public float burstAttackForce;
         public float lightAttackCooldown;
         public float burstAttackCooldown;
         public float comboResetTime;
-        public GameObject weaponModel; // Optional: visual model
+        public GameObject weaponModel;
     }
 
     void Start()
     {
         animator = GetComponent<Animator>();
         cam = Camera.main;
-
-        // Initialize default weapons if not set
-        if (weapons[0].lightAttackDamage == null || weapons[0].lightAttackDamage.Length == 0)
-        {
-            InitializeDefaultWeapons();
-        }
 
         if (attackPoint == null)
         {
@@ -73,45 +67,6 @@ public class PlayerAttack : MonoBehaviour
 
         // Activate first weapon
         SwitchWeapon(0);
-    }
-
-    void InitializeDefaultWeapons()
-    {
-        // Weapon 1: Knife (Fast, low damage)
-        weapons[0] = new Weapon
-        {
-            weaponName = "Knife",
-            lightAttackDamage = new float[] { 10f, 12f, 15f, 18f },
-            burstAttackDamage = 30f,
-            burstAttackForce = 3f,
-            lightAttackCooldown = 0.2f,
-            burstAttackCooldown = 1.5f,
-            comboResetTime = 2f
-        };
-
-        // Weapon 2: Sword (Balanced)
-        weapons[1] = new Weapon
-        {
-            weaponName = "Sword",
-            lightAttackDamage = new float[] { 15f, 18f, 22f, 25f },
-            burstAttackDamage = 45f,
-            burstAttackForce = 5f,
-            lightAttackCooldown = 0.3f,
-            burstAttackCooldown = 2f,
-            comboResetTime = 2f
-        };
-
-        // Weapon 3: Hammer (Slow, high damage)
-        weapons[2] = new Weapon
-        {
-            weaponName = "Hammer",
-            lightAttackDamage = new float[] { 20f, 25f, 30f, 35f },
-            burstAttackDamage = 60f,
-            burstAttackForce = 8f,
-            lightAttackCooldown = 0.5f,
-            burstAttackCooldown = 3f,
-            comboResetTime = 2.5f
-        };
     }
 
     void Update()
@@ -280,34 +235,24 @@ public class PlayerAttack : MonoBehaviour
     {
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayer);
 
+        Weapon currentWeapon = weapons[currentWeaponIndex];
+        float knockbackForce = isBurst ? currentWeapon.burstAttackForce : currentWeapon.lightAttackKnockbackForce;
+
         foreach (Collider2D enemy in hitEnemies)
         {
-            Dummy enemyHealth = enemy.GetComponent<Dummy>();
-            if (enemyHealth != null)
+            Dummy enemyScript = enemy.GetComponent<Dummy>();
+            if (enemyScript != null)
             {
-                enemyHealth.TakeDamage(damage, isCrit);
+                enemyScript.TakeDamage(damage, isCrit);
 
                 if (isCrit && critEffect != null)
                 {
                     Instantiate(critEffect, enemy.transform.position, Quaternion.identity);
                 }
 
-                if (isBurst)
-                {
-                    ApplyKnockback(enemy.transform);
-                }
+                Vector2 knockbackDirection = (enemy.transform.position - transform.position).normalized;
+                enemyScript.ApplyKnockback(knockbackDirection, knockbackForce);
             }
-        }
-    }
-
-    void ApplyKnockback(Transform enemy)
-    {
-        Rigidbody2D enemyRb = enemy.GetComponent<Rigidbody2D>();
-        if (enemyRb != null)
-        {
-            Vector2 direction = (enemy.position - transform.position).normalized;
-            float force = weapons[currentWeaponIndex].burstAttackForce;
-            enemyRb.AddForce(direction * force, ForceMode2D.Impulse);
         }
     }
 
@@ -381,7 +326,6 @@ public class PlayerAttack : MonoBehaviour
         return Mathf.Clamp01(timeSinceLastAttack / resetTime);
     }
 
-    // New methods for weapon system
     public string GetCurrentWeaponName()
     {
         return weapons[currentWeaponIndex].weaponName;
@@ -397,7 +341,6 @@ public class PlayerAttack : MonoBehaviour
         return weapons[currentWeaponIndex];
     }
 
-    // Crit system methods
     public float GetCritChance()
     {
         return critChance;

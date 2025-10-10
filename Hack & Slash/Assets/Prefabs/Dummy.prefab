@@ -100,13 +100,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: caba87d90d2670f4d9828b09de992612, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 100
-  moveSpeed: 30
+  itemPickupPrefab: {fileID: 4396022401156547204, guid: 742557ad172699a4181a7b9a4da50765, type: 3}
+  chanceToDropAnything: 50
+  lootTable: []
+  maxHealth: 20
+  moveSpeed: 50
   contactDamage: 1
   avoidanceRayDistance: 2
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 64
+  knockbackDuration: 0.2
+  knockbackForceOnPlayer: 5
+  knockbackForceOnEachOther: 5
   damageNumberPrefab: {fileID: 2527666943497601729, guid: 91adcf60e2018a249bbcb7721eb8f74c, type: 3}
   damageNumberSpawnPoint: {fileID: 2835382093811817981}
   spawnRadius: 0.75

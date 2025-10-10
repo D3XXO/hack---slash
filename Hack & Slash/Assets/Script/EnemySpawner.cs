@@ -1,4 +1,3 @@
-// EnemySpawner.cs
 using UnityEngine;
 using System.Collections;
 
@@ -11,7 +10,12 @@ public class EnemySpawner : MonoBehaviour
     [Header("Spawn Area")]
     [SerializeField] float minSpawnRadius;
     [SerializeField] float maxSpawnRadius;
-    
+
+    [Header("Overlap Prevention")]
+    [SerializeField] LayerMask enemyLayer;
+    [SerializeField] float enemyRadius;
+    [SerializeField] int maxSpawnAttempts;
+
     private Transform playerTransform;
 
     void Start()
@@ -29,11 +33,28 @@ public class EnemySpawner : MonoBehaviour
         {
             yield return new WaitForSeconds(spawnInterval);
 
-            Vector2 randomDirection = Random.insideUnitCircle.normalized;
-            float randomDistance = Random.Range(minSpawnRadius, maxSpawnRadius);
-            Vector3 spawnPosition = playerTransform.position + (Vector3)(randomDirection * randomDistance);
+            bool positionFound = false;
+            Vector3 spawnPosition = Vector3.zero;
 
-            Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
+            for (int i = 0; i < maxSpawnAttempts; i++)
+            {
+                Vector2 randomDirection = Random.insideUnitCircle.normalized;
+                float randomDistance = Random.Range(minSpawnRadius, maxSpawnRadius);
+                spawnPosition = playerTransform.position + (Vector3)(randomDirection * randomDistance);
+
+                Collider2D overlap = Physics2D.OverlapCircle(spawnPosition, enemyRadius, enemyLayer);
+
+                if (overlap == null)
+                {
+                    positionFound = true;
+                    break;
+                }
+            }
+
+            if (positionFound)
+            {
+                Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
+            }
         }
     }
 }
