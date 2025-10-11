@@ -1,11 +1,26 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class EnemySpawner : MonoBehaviour
 {
+    [System.Serializable]
+    public class EnemySpawnConfig
+    {
+        public string enemyName;
+        public GameObject enemyPrefab;
+        public float spawnInterval;
+        
+        public bool isUnique;
+
+        [HideInInspector]
+        public float spawnTimer;
+        [HideInInspector]
+        public GameObject uniqueInstance;
+    }
+
     [Header("Spawner Settings")]
-    [SerializeField] GameObject enemyPrefab;
-    [SerializeField] float spawnInterval;
+    [SerializeField] private List<EnemySpawnConfig> enemySpawnList;
 
     [Header("Spawn Area")]
     [SerializeField] float minSpawnRadius;
@@ -20,41 +35,81 @@ public class EnemySpawner : MonoBehaviour
 
     void Start()
     {
-        playerTransform = FindObjectOfType<TopDownPlayer>().transform;
+        playerTransform = FindObjectOfType<TopDownPlayer>()?.transform;
 
-        if (playerTransform == null) return;
+        if (playerTransform == null)
+        {
+            this.enabled = false;
+            return;
+        }
 
-        StartCoroutine(SpawnEnemyRoutine());
+        foreach (var config in enemySpawnList)
+        {
+            config.spawnTimer = config.spawnInterval;
+        }
     }
 
-    private IEnumerator SpawnEnemyRoutine()
+    void Update()
     {
-        while (true)
+        if (playerTransform == null) return;
+
+        foreach (var config in enemySpawnList)
         {
-            yield return new WaitForSeconds(spawnInterval);
-
-            bool positionFound = false;
-            Vector3 spawnPosition = Vector3.zero;
-
-            for (int i = 0; i < maxSpawnAttempts; i++)
+            if (config.isUnique)
             {
-                Vector2 randomDirection = Random.insideUnitCircle.normalized;
-                float randomDistance = Random.Range(minSpawnRadius, maxSpawnRadius);
-                spawnPosition = playerTransform.position + (Vector3)(randomDirection * randomDistance);
-
-                Collider2D overlap = Physics2D.OverlapCircle(spawnPosition, enemyRadius, enemyLayer);
-
-                if (overlap == null)
-                {
-                    positionFound = true;
-                    break;
-                }
+                HandleUniqueSpawn(config);
             }
-
-            if (positionFound)
+            else
             {
-                Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
+                HandleRegularSpawn(config);
             }
         }
+    }
+    
+    private void HandleRegularSpawn(EnemySpawnConfig config)
+    {
+        config.spawnTimer -= Time.deltaTime;
+        if (config.spawnTimer <= 0f)
+        {
+            AttemptToSpawn(config);
+            config.spawnTimer = config.spawnInterval;
+        }
+    }
+
+    private void HandleUniqueSpawn(EnemySpawnConfig config)
+    {
+        if (config.uniqueInstance == null)
+        {
+            config.spawnTimer -= Time.deltaTime;
+            if (config.spawnTimer <= 0f)
+            {
+                GameObject spawnedEnemy = AttemptToSpawn(config);
+
+                if (spawnedEnemy != null)
+                {
+                    config.uniqueInstance = spawnedEnemy;
+                    config.spawnTimer = config.spawnInterval;
+                }
+            }
+        }
+    }
+
+    private GameObject AttemptToSpawn(EnemySpawnConfig config)
+    {
+        for (int i = 0; i < maxSpawnAttempts; i++)
+        {
+            Vector2 randomDirection = Random.insideUnitCircle.normalized;
+            float randomDistance = Random.Range(minSpawnRadius, maxSpawnRadius);
+            Vector3 spawnPosition = playerTransform.position + (Vector3)(randomDirection * randomDistance);
+
+            Collider2D overlap = Physics2D.OverlapCircle(spawnPosition, enemyRadius, enemyLayer);
+
+            if (overlap == null)
+            {
+                return Instantiate(config.enemyPrefab, spawnPosition, Quaternion.identity);
+            }
+        }
+
+        return null;
     }
 }

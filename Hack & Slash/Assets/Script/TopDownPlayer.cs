@@ -17,7 +17,13 @@ public class TopDownPlayer : MonoBehaviour
     [SerializeField] float knockbackDuration;
 
     [Header("Input Settings")]
-    [SerializeField] KeyCode dashKey = KeyCode.LeftShift;
+    [SerializeField] KeyCode dashKey;
+
+    [Header("QTE Finisher Settings")]
+    [SerializeField] float qteDashDistance;
+    [SerializeField] float qteDashAnimDuration;
+    [SerializeField] private float qteKnockbackForce;
+    [SerializeField] private LayerMask enemyLayer;
 
     public CameraController mainCameraController;
     private PlayerHealthUI healthUI;
@@ -29,7 +35,9 @@ public class TopDownPlayer : MonoBehaviour
     private float dashTimeLeft = 0f;
     private float dashCooldownLeft = 0f;
 
+    private bool isInvulnerable = false;
     private bool isBeingKnockedBack = false;
+    private bool controlsEnabled = true;
 
     void Start()
     {
@@ -44,7 +52,7 @@ public class TopDownPlayer : MonoBehaviour
 
     void Update()
     {
-        if (isBeingKnockedBack) return;
+        if (!controlsEnabled || isBeingKnockedBack) return;
 
         float horizontalInput = Input.GetAxisRaw("Horizontal");
         float verticalInput = Input.GetAxisRaw("Vertical");
@@ -82,7 +90,7 @@ public class TopDownPlayer : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (isBeingKnockedBack) return;
+        if (!controlsEnabled || isBeingKnockedBack) return;
 
         if (isDashing)
         {
@@ -91,6 +99,15 @@ public class TopDownPlayer : MonoBehaviour
         else
         {
             rb.velocity = movement * moveSpeed * Time.deltaTime;
+        }
+    }
+
+    public void SetControlEnabled(bool state)
+    {
+        controlsEnabled = state;
+        if (!state)
+        {
+            rb.velocity = Vector2.zero;
         }
     }
 
@@ -105,21 +122,18 @@ public class TopDownPlayer : MonoBehaviour
     private IEnumerator KnockbackCoroutine(Vector2 direction, float force)
     {
         isBeingKnockedBack = true;
-        
         rb.velocity = direction * force;
-
         yield return new WaitForSeconds(knockbackDuration);
-
         rb.velocity = Vector2.zero;
         isBeingKnockedBack = false;
     }
 
     public void TakeDamage(float damage)
     {
-        currentHealth -= damage;
-        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth); 
+        if (isInvulnerable) return;
 
-        Debug.Log($"Player took {damage} damage. Current Health: {currentHealth}");
+        currentHealth -= damage;
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
 
         if (healthUI != null)
         {
@@ -135,22 +149,11 @@ public class TopDownPlayer : MonoBehaviour
     private void Die()
     {
         Debug.Log("Player has died!");
-        gameObject.SetActive(false); 
+        gameObject.SetActive(false);
     }
-    public float GetCurrentHealth()
-    {
-        return currentHealth;
-    }
-
-    public float GetMaxHealth()
-    {
-        return maxHealth;
-    }
-
-    public float GetHealthPercentage()
-    {
-        return currentHealth / maxHealth;
-    }
+    public float GetCurrentHealth() { return currentHealth; }
+    public float GetMaxHealth() { return maxHealth; }
+    public float GetHealthPercentage() { return currentHealth / maxHealth; }
     
     void StartDash()
     {
@@ -166,13 +169,49 @@ public class TopDownPlayer : MonoBehaviour
         rb.velocity = Vector2.zero;
     }
 
-    public bool IsDashing()
+    public bool IsDashing() { return isDashing; }
+    public float GetDashCooldownPercentage() { return 1f - (dashCooldownLeft / dashCooldown); }
+
+    public void PerformQteAttack(Transform target)
     {
-        return isDashing;
+        StartCoroutine(QteAttackCoroutine(target));
     }
 
-    public float GetDashCooldownPercentage()
+    private IEnumerator QteAttackCoroutine(Transform target)
     {
-        return 1f - (dashCooldownLeft / dashCooldown);
+        isInvulnerable = true;
+        try
+        {
+            Vector3 startPos = transform.position;
+
+            Vector3 direction = (target.position - startPos).normalized;
+
+            float distance = Vector3.Distance(startPos, target.position) + qteDashDistance;
+            float duration = qteDashAnimDuration;
+            Vector3 endPos = startPos + direction * distance;
+
+            RaycastHit2D[] hitEnemies = Physics2D.RaycastAll(startPos, direction, distance, enemyLayer);
+            foreach (RaycastHit2D hit in hitEnemies)
+            {
+                if (hit.collider.TryGetComponent<IDamageable>(out IDamageable enemy))
+                {
+                    enemy.ApplyKnockback(direction, qteKnockbackForce);
+                }
+            }
+
+            float timer = 0f;
+            while (timer < duration)
+            {
+                transform.position = Vector3.Lerp(startPos, endPos, timer / duration);
+                timer += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            transform.position = endPos;
+
+        }
+        finally
+        {
+            isInvulnerable = false;
+        }
     }
 }

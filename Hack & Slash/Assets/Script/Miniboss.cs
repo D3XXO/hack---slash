@@ -1,8 +1,9 @@
 using UnityEngine;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.UI;
 
-public class Dummy : MonoBehaviour, IDamageable
+public class Miniboss : MonoBehaviour, IDamageable
 {
     [System.Serializable]
     public struct LootItem
@@ -35,33 +36,168 @@ public class Dummy : MonoBehaviour, IDamageable
     [SerializeField] GameObject damageNumberPrefab;
     [SerializeField] Transform damageNumberSpawnPoint;
     [SerializeField] float spawnRadius;
+
+    [Header("QTE Settings")]
+    [SerializeField] [Range(0.01f, 1f)] float qteHealthThreshold;
+    [SerializeField] private GameObject qtePromptPrefab;
+    [SerializeField] private Transform gameCanvas;
+    [SerializeField] private Vector3 qtePromptOffset;
     
+    private GameObject qtePromptInstance;
+    private RectTransform qtePromptRectTransform;
+    private Camera mainCamera;
+    private bool isQteAvailable = false;
+    private bool isQteTriggered = false;
+    private QteManager qteManager;
+
     private float currentHealth;
     private Transform playerTransform;
     private Rigidbody2D rb;
-    private Canvas gameCanvas;
     
     private bool isBeingKnockedBack = false;
+    private bool isInQteState = false;
 
     void Start()
     {
         currentHealth = maxHealth;
         rb = GetComponent<Rigidbody2D>();
-        gameCanvas = FindObjectOfType<Canvas>();
-        
         playerTransform = FindObjectOfType<TopDownPlayer>()?.transform;
-        
+        qteManager = FindObjectOfType<QteManager>();
+
+        mainCamera = Camera.main;
+
+        if (gameCanvas == null)
+        {
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (canvas != null)
+            {
+                gameCanvas = canvas.transform;
+            }
+        }
+
+        if (qteManager == null)
+        {
+            this.enabled = false;
+        }
+
         if (playerTransform == null)
         {
             this.enabled = false;
         }
     }
+    
+    void LateUpdate()
+    {
+        if (qtePromptInstance != null && qtePromptInstance.activeInHierarchy)
+        {
+            Vector3 targetWorldPosition = damageNumberSpawnPoint.position + qtePromptOffset;
+            
+            Vector2 screenPoint = mainCamera.WorldToScreenPoint(targetWorldPosition);
+
+            qtePromptRectTransform.position = screenPoint;
+        }
+    }
 
     void FixedUpdate()
     {
-        if (playerTransform == null || isBeingKnockedBack) return;
+        if (playerTransform == null || isBeingKnockedBack || isInQteState) return;
         
         HandleMovement();
+    }
+
+    public void TakeDamage(float damage, bool isCrit)
+    {
+        if (isInQteState) return;
+
+        currentHealth -= damage;
+        
+        if (damageNumberPrefab != null && gameCanvas != null)
+        {
+            Vector3 basePosition = damageNumberSpawnPoint.position;
+            Vector2 randomOffset = Random.insideUnitCircle * spawnRadius;
+            Vector3 spawnPosition = basePosition + new Vector3(randomOffset.x, randomOffset.y, 0);
+            GameObject damageNumberInstance = Instantiate(damageNumberPrefab, gameCanvas.transform);
+            DamageNumber dnScript = damageNumberInstance.GetComponent<DamageNumber>();
+            dnScript.worldPositionToFollow = spawnPosition;
+            dnScript.SetDamage(damage, isCrit);
+        }
+
+        if (currentHealth / maxHealth <= qteHealthThreshold && !isQteAvailable)
+        {
+            MakeQteAvailable();
+        }
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+    }
+
+    private void MakeQteAvailable()
+    {
+        isQteAvailable = true;
+
+        if (qtePromptPrefab != null && gameCanvas != null)
+        {
+            qtePromptInstance = Instantiate(qtePromptPrefab, gameCanvas);
+            
+            qtePromptRectTransform = qtePromptInstance.GetComponent<RectTransform>();
+        }
+
+        qteManager.RegisterQteTarget(this);
+    }
+    
+    public void InitiateQteSequence()
+    {
+        isQteTriggered = true;
+        isInQteState = true;
+        rb.velocity = Vector2.zero;
+
+        if (qtePromptInstance != null)
+        {
+            qtePromptInstance.SetActive(false);
+        }
+    }
+
+    public void SetQteState(bool state)
+    {
+        isInQteState = state;
+    }
+
+    public bool IsQteAvailable()
+    {
+        return isQteAvailable;
+    }
+
+    public void HandleQtePartialFailure(int stagesCompleted)
+    {
+        float healthPoolForQte = maxHealth * qteHealthThreshold;
+
+        float damagePerStage = healthPoolForQte / 4f;
+
+        float targetHealth = healthPoolForQte - (stagesCompleted * damagePerStage);
+
+        currentHealth = Mathf.Max(targetHealth, 1f);
+
+        isQteAvailable = false;
+        isQteTriggered = false;
+        SetQteState(false);
+    }
+
+    public void Die()
+    {
+        if(isQteAvailable)
+        {
+            qteManager.UnregisterQteTarget(this);
+        }
+        
+        if (qtePromptInstance != null)
+        {
+            Destroy(qtePromptInstance);
+        }
+
+        HandleLootDrop();
+        Destroy(gameObject);
     }
 
     private void HandleMovement()
@@ -96,29 +232,9 @@ public class Dummy : MonoBehaviour, IDamageable
         rb.velocity = moveDirection * moveSpeed * Time.deltaTime;
     }
 
-    public void TakeDamage(float damage, bool isCrit)
-    {
-        currentHealth -= damage;
-
-        if (damageNumberPrefab != null && gameCanvas != null)
-        {
-            Vector3 basePosition = damageNumberSpawnPoint.position;
-            Vector2 randomOffset = Random.insideUnitCircle * spawnRadius;
-            Vector3 spawnPosition = basePosition + new Vector3(randomOffset.x, randomOffset.y, 0);
-            GameObject damageNumberInstance = Instantiate(damageNumberPrefab, gameCanvas.transform);
-            DamageNumber dnScript = damageNumberInstance.GetComponent<DamageNumber>();
-            dnScript.worldPositionToFollow = spawnPosition;
-            dnScript.SetDamage(damage, isCrit);
-        }
-
-        if (currentHealth <= 0)
-        {
-            Die();
-        }
-    }
-    
     public void ApplyKnockback(Vector2 direction, float force)
     {
+        if (isInQteState) return;
         StopAllCoroutines();
         StartCoroutine(KnockbackCoroutine(direction, force));
     }
@@ -138,6 +254,8 @@ public class Dummy : MonoBehaviour, IDamageable
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
+        if (isInQteState) return;
+
         if (collision.gameObject.TryGetComponent<TopDownPlayer>(out TopDownPlayer player))
         {
             player.TakeDamage(contactDamage);
@@ -187,11 +305,5 @@ public class Dummy : MonoBehaviour, IDamageable
                 pickupScript.Setup(itemData, 1);
             }
         }
-    }
-    
-    private void Die()
-    {
-        HandleLootDrop();
-        Destroy(gameObject);
     }
 }

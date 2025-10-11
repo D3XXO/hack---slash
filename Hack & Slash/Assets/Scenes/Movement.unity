@@ -154,6 +154,7 @@ Transform:
   - {fileID: 1919757073}
   - {fileID: 579400052}
   - {fileID: 1718609913}
+  - {fileID: 1573163901}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8789619
@@ -1223,6 +1224,81 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 370143530}
   m_CullTransparentMesh: 1
+--- !u!1 &440560132
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 440560133}
+  - component: {fileID: 440560135}
+  - component: {fileID: 440560134}
+  m_Layer: 5
+  m_Name: QTE_Key_Prompt
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!224 &440560133
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 440560132}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1031849901}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 150, y: 150}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &440560134
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 440560132}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &440560135
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 440560132}
+  m_CullTransparentMesh: 1
 --- !u!1 &472134627
 GameObject:
   m_ObjectHideFlags: 0
@@ -1552,6 +1628,12 @@ MonoBehaviour:
   dashCooldown: 1
   knockbackDuration: 0.2
   dashKey: 304
+  qteDashDistance: 3
+  qteDashAnimDuration: 0.2
+  qteKnockbackForce: 20
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 8
   mainCameraController: {fileID: 2042210226}
 --- !u!4 &572463045
 Transform:
@@ -2846,6 +2928,7 @@ RectTransform:
   - {fileID: 1797337066}
   - {fileID: 562944346}
   - {fileID: 231814875}
+  - {fileID: 440560133}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -4218,6 +4301,62 @@ MonoBehaviour:
   m_Spacing: {x: 20, y: 20}
   m_Constraint: 1
   m_ConstraintCount: 4
+--- !u!1 &1573163900
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1573163901}
+  - component: {fileID: 1573163902}
+  m_Layer: 0
+  m_Name: QteManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1573163901
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1573163900}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2903687}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1573163902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1573163900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f97d6e0e70317d4bbe44313552efcc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  qteDurationPerKey: 1.5
+  qteInitiateKey: 101
+  playerInitiateRange: 3
+  qteShakeDuration: 0.15
+  qteShakeMagnitude: 0.2
+  slowMotionScale: 0.2
+  qteKeyImage: {fileID: 440560134}
+  uiPadding: 150
+  wKeySprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  aKeySprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  sKeySprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  dKeySprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
 --- !u!1 &1603682039
 GameObject:
   m_ObjectHideFlags: 0
@@ -5632,8 +5771,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fdb8512d677f62241afc5b1a8dabb3b0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyPrefab: {fileID: 4349983514380635924, guid: 0077e377cddeed34ab4f857d0d8f5dd7, type: 3}
-  spawnInterval: 2
+  enemySpawnList:
+  - enemyName: Dummy
+    enemyPrefab: {fileID: 4349983514380635924, guid: 0077e377cddeed34ab4f857d0d8f5dd7, type: 3}
+    spawnInterval: 2
+    isUnique: 0
+    spawnTimer: 0
+    uniqueInstance: {fileID: 0}
+  - enemyName: Miniboss
+    enemyPrefab: {fileID: 4349983514380635924, guid: 3b96ed7ce3a39514cbb620b1580b48e6, type: 3}
+    spawnInterval: 10
+    isUnique: 1
+    spawnTimer: 0
+    uniqueInstance: {fileID: 0}
   minSpawnRadius: 25
   maxSpawnRadius: 30
   enemyLayer:

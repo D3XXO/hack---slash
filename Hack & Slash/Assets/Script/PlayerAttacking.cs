@@ -21,23 +21,21 @@ public class PlayerAttack : MonoBehaviour
     [SerializeField] GameObject attackEffect;
     [SerializeField] Transform attackPoint;
 
-    // Attack state variables
     private int currentCombo = 0;
     private float lastAttackTime = 0f;
     private bool canAttack = true;
     private Coroutine comboResetCoroutine;
 
-    // Cooldown timers
     private float lightCooldownLeft = 0f;
     private float burstCooldownLeft = 0f;
 
-    // References
     private Animator animator;
     private Camera cam;
 
-    // Stats tracking
     private int totalCrits = 0;
     private int totalAttacks = 0;
+
+    private bool attackEnabled = true;
 
     [System.Serializable]
     public class Weapon
@@ -65,7 +63,6 @@ public class PlayerAttack : MonoBehaviour
             attackPoint.localPosition = new Vector3(0, 0, 0);
         }
 
-        // Activate first weapon
         SwitchWeapon(0);
     }
 
@@ -83,7 +80,6 @@ public class PlayerAttack : MonoBehaviour
 
     void HandleWeaponSwitch()
     {
-        // Switch weapons with 1, 2, 3 keys
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             SwitchWeapon(0);
@@ -102,24 +98,21 @@ public class PlayerAttack : MonoBehaviour
     {
         if (weaponIndex < 0 || weaponIndex >= weapons.Length) return;
 
-        // Deactivate current weapon model
         if (weapons[currentWeaponIndex].weaponModel != null)
             weapons[currentWeaponIndex].weaponModel.SetActive(false);
 
         currentWeaponIndex = weaponIndex;
 
-        // Activate new weapon model
         if (weapons[currentWeaponIndex].weaponModel != null)
             weapons[currentWeaponIndex].weaponModel.SetActive(true);
 
-        // Reset combo when switching weapons
         ResetCombo();
-
-        Debug.Log($"Switched to: {weapons[currentWeaponIndex].weaponName}");
     }
 
     void HandleAttackInput()
     {
+        if (!attackEnabled) return;
+
         if (Input.GetMouseButtonDown(0) && canAttack && lightCooldownLeft <= 0f)
         {
             LightAttack();
@@ -131,6 +124,11 @@ public class PlayerAttack : MonoBehaviour
         }
     }
 
+    public void SetAttackEnabled(bool state)
+    {
+        attackEnabled = state;
+    }
+
     void LightAttack()
     {
         if (comboResetCoroutine != null)
@@ -140,7 +138,6 @@ public class PlayerAttack : MonoBehaviour
 
         Weapon currentWeapon = weapons[currentWeaponIndex];
 
-        // Calculate damage with crit chance
         float baseDamage = currentWeapon.lightAttackDamage[currentCombo];
         bool isCrit = RollForCrit();
         float finalDamage = isCrit ? baseDamage * critMultiplier : baseDamage;
@@ -158,21 +155,10 @@ public class PlayerAttack : MonoBehaviour
             Instantiate(attackEffect, attackPoint.position, attackPoint.rotation);
         }
 
-        // Show appropriate message
-        if (isCrit)
-        {
-            Debug.Log($"<color=yellow>CRITICAL! {currentWeapon.weaponName} Light Attack Combo {currentCombo + 1}! Damage: {finalDamage}</color>");
-        }
-        else
-        {
-            Debug.Log($"{currentWeapon.weaponName} Light Attack Combo {currentCombo + 1}! Damage: {finalDamage}");
-        }
-
         currentCombo++;
         if (currentCombo >= currentWeapon.lightAttackDamage.Length)
         {
             currentCombo = 0;
-            Debug.Log($"{currentWeapon.weaponName} combo finished! Resetting to first attack.");
         }
 
         lightCooldownLeft = currentWeapon.lightAttackCooldown;
@@ -186,7 +172,6 @@ public class PlayerAttack : MonoBehaviour
     {
         Weapon currentWeapon = weapons[currentWeaponIndex];
 
-        // Calculate damage with crit chance
         bool isCrit = RollForCrit();
         float finalDamage = isCrit ? currentWeapon.burstAttackDamage * critMultiplier : currentWeapon.burstAttackDamage;
 
@@ -202,16 +187,6 @@ public class PlayerAttack : MonoBehaviour
         if (attackEffect != null)
         {
             Instantiate(attackEffect, attackPoint.position, attackPoint.rotation);
-        }
-
-        // Show appropriate message
-        if (isCrit)
-        {
-            Debug.Log($"<color=yellow>CRITICAL BURST! {currentWeapon.weaponName} Damage: {finalDamage}</color>");
-        }
-        else
-        {
-            Debug.Log($"{currentWeapon.weaponName} Burst Attack! Damage: {finalDamage}");
         }
 
         ResetCombo();
@@ -240,10 +215,11 @@ public class PlayerAttack : MonoBehaviour
 
         foreach (Collider2D enemy in hitEnemies)
         {
-            Dummy enemyScript = enemy.GetComponent<Dummy>();
-            if (enemyScript != null)
+            IDamageable damageableEnemy = enemy.GetComponent<IDamageable>();
+
+            if (damageableEnemy != null)
             {
-                enemyScript.TakeDamage(damage, isCrit);
+                damageableEnemy.TakeDamage(damage, isCrit);
 
                 if (isCrit && critEffect != null)
                 {
@@ -251,7 +227,8 @@ public class PlayerAttack : MonoBehaviour
                 }
 
                 Vector2 knockbackDirection = (enemy.transform.position - transform.position).normalized;
-                enemyScript.ApplyKnockback(knockbackDirection, knockbackForce);
+
+                damageableEnemy.ApplyKnockback(knockbackDirection, knockbackForce);
             }
         }
     }
@@ -265,11 +242,6 @@ public class PlayerAttack : MonoBehaviour
 
     void ResetCombo()
     {
-        if (currentCombo > 0)
-        {
-            Debug.Log("Combo reset due to timeout!");
-        }
-
         currentCombo = 0;
         if (animator != null)
         {
@@ -279,7 +251,6 @@ public class PlayerAttack : MonoBehaviour
         comboResetCoroutine = null;
     }
 
-    // Public methods for UI and other scripts
     public bool IsAttacking()
     {
         return lightCooldownLeft > 0f || burstCooldownLeft > 0f;
